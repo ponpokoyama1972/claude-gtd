@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GTD">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<title>Claude GTD</title>
+<style>
+:root {
+  --bg: #0F0F0F;
+  --surface: #1A1A1A;
+  --surface2: #242424;
+  --border: #2E2E2E;
+  --text: #F0EDE8;
+  --muted: #6B6862;
+  --energy: #F5A623;
+  --mobile: #4A9EFF;
+  --low: #52B78B;
+  --review: #B07FFF;
+  --accent: #F5A623;
+  --danger: #FF5C5C;
+  --nav-h: 60px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overscroll-behavior:none;}
+#app{max-width:430px;margin:0 auto;position:relative;min-height:100vh;}
+
+/* === SCREENS === */
+.screen{display:none;padding-bottom:calc(var(--nav-h) + var(--safe-b) + 16px);min-height:100vh;}
+.screen.active{display:block;}
+
+/* === NAV === */
+#bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(26,26,26,0.95);backdrop-filter:blur(12px);border-top:1px solid var(--border);display:flex;height:calc(var(--nav-h) + var(--safe-b));padding-bottom:var(--safe-b);z-index:100;}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:none;cursor:pointer;color:var(--muted);font-size:10px;font-weight:600;letter-spacing:.04em;transition:color .2s;}
+.nav-btn.active{color:var(--accent);}
+.nav-icon{font-size:20px;line-height:1;}
+
+/* === HEADER === */
+.screen-hd{padding:20px 20px 12px;display:flex;align-items:flex-end;justify-content:space-between;}
+.screen-title{font-size:28px;font-weight:800;letter-spacing:-.5px;}
+.screen-sub{font-size:12px;color:var(--muted);margin-top:3px;}
+.hd-badge{font-size:11px;font-weight:700;background:var(--accent);color:#000;border-radius:20px;padding:4px 10px;}
+
+/* === INBOX === */
+.inbox-wrap{padding:0 16px;}
+.inbox-area{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;font-size:16px;color:var(--text);resize:none;min-height:120px;font-family:inherit;line-height:1.6;outline:none;transition:border-color .2s;}
+.inbox-area:focus{border-color:var(--accent);}
+.inbox-area::placeholder{color:var(--muted);}
+.inbox-meta{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.ctx-chip{font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:none;cursor:pointer;color:var(--muted);transition:all .15s;}
+.ctx-chip.sel-energy{background:var(--energy);color:#000;border-color:var(--energy);}
+.ctx-chip.sel-mobile{background:var(--mobile);color:#fff;border-color:var(--mobile);}
+.ctx-chip.sel-low{background:var(--low);color:#fff;border-color:var(--low);}
+.ctx-chip.sel-someday{background:var(--surface2);color:var(--muted);border-color:var(--border);}
+.ctx-chip.sel-calendar{background:#FF6B6B;color:#fff;border-color:#FF6B6B;}
+.inbox-actions{display:flex;gap:8px;margin-top:12px;}
+.btn-add{flex:1;background:var(--accent);color:#000;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.btn-add:active{opacity:.8;}
+.btn-voice{width:50px;height:50px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.btn-voice.recording{background:var(--danger);border-color:var(--danger);animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.6;}}
+
+.inbox-list{margin-top:24px;}
+.inbox-sec-lbl{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;padding:0 0 8px;}
+.inbox-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;transition:border-color .15s;}
+.inbox-item:active{border-color:var(--accent);}
+.inbox-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:5px;flex-shrink:0;}
+.inbox-text{flex:1;font-size:14px;line-height:1.5;color:var(--text);}
+.inbox-del{width:28px;height:28px;border:none;background:none;color:var(--muted);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;border-radius:50%;}
+.inbox-del:active{background:var(--surface2);}
+.inbox-empty{text-align:center;padding:32px 16px;color:var(--muted);font-size:14px;}
+
+/* === CONTEXT === */
+.ctx-tabs{display:flex;gap:6px;padding:0 16px 12px;overflow-x:auto;scrollbar-width:none;}
+.ctx-tabs::-webkit-scrollbar{display:none;}
+.ctx-tab{flex-shrink:0;font-size:13px;font-weight:700;padding:8px 16px;border-radius:20px;border:1px solid var(--border);background:none;cursor:pointer;color:var(--muted);white-space:nowrap;transition:all .15s;}
+.ctx-tab.active-energy{background:var(--energy);color:#000;border-color:var(--energy);}
+.ctx-tab.active-mobile{background:var(--mobile);color:#fff;border-color:var(--mobile);}
+.ctx-tab.active-low{background:var(--low);color:#fff;border-color:var(--low);}
+.ctx-tab.active-someday{background:var(--surface2);color:var(--text);border-color:var(--muted);}
+
+.task-list{padding:0 16px;}
+.task-item{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;display:flex;align-items:flex-start;gap:12px;transition:all .2s;}
+.task-check{width:24px;height:24px;border-radius:50%;border:2px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:1px;}
+.task-check:active{transform:scale(.9);}
+.task-check.done{background:var(--low);border-color:var(--low);}
+.task-body{flex:1;}
+.task-text{font-size:15px;line-height:1.5;color:var(--text);}
+.task-text.done{text-decoration:line-through;color:var(--muted);}
+.task-proj{font-size:11px;color:var(--muted);margin-top:4px;}
+.task-empty{text-align:center;padding:48px 16px;color:var(--muted);}
+.task-empty-icon{font-size:40px;margin-bottom:12px;}
+.task-empty-msg{font-size:14px;line-height:1.6;}
+
+/* === PROJECTS === */
+.proj-list{padding:0 16px;}
+.proj-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;}
+.proj-name{font-size:16px;font-weight:700;margin-bottom:8px;}
+.proj-next{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;}
+.proj-ctx{font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;}
+.proj-ctx.energy{background:rgba(245,166,35,.15);color:var(--energy);}
+.proj-ctx.mobile{background:rgba(74,158,255,.15);color:var(--mobile);}
+.proj-ctx.low{background:rgba(82,183,139,.15);color:var(--low);}
+.proj-status{font-size:11px;color:var(--muted);margin-top:8px;display:flex;gap:8px;}
+.status-pill{padding:3px 8px;border-radius:8px;background:var(--surface2);}
+
+/* === WEEKLY REVIEW === */
+.review-wrap{padding:0 16px;}
+.review-hero{background:linear-gradient(135deg,#1a0a2e,#0a1a2e);border:1px solid var(--review);border-radius:20px;padding:28px 24px;margin-bottom:20px;text-align:center;}
+.review-icon{font-size:48px;margin-bottom:12px;}
+.review-title{font-size:22px;font-weight:800;color:var(--review);margin-bottom:8px;}
+.review-date{font-size:13px;color:var(--muted);}
+.review-not-sunday{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center;color:var(--muted);font-size:14px;line-height:1.7;}
+.review-step{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:10px;}
+.review-step-hd{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.review-step-n{width:28px;height:28px;border-radius:50%;background:var(--review);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.review-step-title{font-size:15px;font-weight:700;}
+.review-step-body{font-size:13px;color:var(--muted);line-height:1.7;}
+.review-textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:14px;color:var(--text);resize:none;min-height:80px;font-family:inherit;margin-top:10px;outline:none;}
+.review-textarea:focus{border-color:var(--review);}
+.review-complete{width:100%;background:var(--review);color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px;}
+
+/* === TOAST === */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);font-size:14px;font-weight:700;padding:10px 20px;border-radius:24px;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;}
+
+/* === ANIMATIONS === */
+@keyframes slideUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+.task-item,.inbox-item,.proj-card{animation:slideUp .2s ease both;}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- INBOX -->
+<div class="screen active" id="sc-inbox">
+  <div class="screen-hd">
+    <div>
+      <div class="screen-title">Inbox</div>
+      <div class="screen-sub">気になることを全部ここへ</div>
+    </div>
+    <div class="hd-badge" id="inbox-count">0件</div>
+  </div>
+  <div class="inbox-wrap">
+    <textarea class="inbox-area" id="inbox-input" placeholder="何でも放り込む。整理しなくていい。"></textarea>
+    <div class="inbox-meta">
+      <button class="ctx-chip" data-ctx="energy" onclick="selCtx(this,'energy')">🔥 エネルギー高</button>
+      <button class="ctx-chip" data-ctx="mobile" onclick="selCtx(this,'mobile')">📱 スキマ時間</button>
+      <button class="ctx-chip" data-ctx="low" onclick="selCtx(this,'low')">🧠 疲れてても</button>
+      <button class="ctx-chip" data-ctx="someday" onclick="selCtx(this,'someday')">🗄️ いつかやる</button>
+      <button class="ctx-chip" data-ctx="calendar" onclick="selCtx(this,'calendar')">📅 カレンダー</button>
+    </div>
+    <div class="inbox-actions">
+      <button class="btn-add" onclick="addInbox()">放り込む</button>
+      <button class="btn-voice" id="voice-btn" onclick="toggleVoice()">🎤</button>
+    </div>
+
+    <div class="inbox-list">
+      <div class="inbox-sec-lbl">未整理 Inbox</div>
+      <div id="inbox-items"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTEXT -->
+<div class="screen" id="sc-ctx">
+  <div class="screen-hd">
+    <div>
+      <div class="screen-title">今やること</div>
+      <div class="screen-sub">今の状態で選ぶ</div>
+    </div>
+  </div>
+  <div class="ctx-tabs">
+    <button class="ctx-tab active-energy" onclick="switchCtx('energy',this)">🔥 エネルギー高</button>
+    <button class="ctx-tab" onclick="switchCtx('mobile',this)">📱 スキマ時間</button>
+    <button class="ctx-tab" onclick="switchCtx('low',this)">🧠 疲れてても</button>
+    <button class="ctx-tab" onclick="switchCtx('someday',this)">🗄️ いつかやる</button>
+  </div>
+  <div class="task-list" id="task-list"></div>
+</div>
+
+<!-- PROJECTS -->
+<div class="screen" id="sc-proj">
+  <div class="screen-hd">
+    <div>
+      <div class="screen-title">プロジェクト</div>
+      <div class="screen-sub">全体を俯瞰する</div>
+    </div>
+    <button class="hd-badge" onclick="showAddProj()" style="cursor:pointer;background:var(--surface2);color:var(--text)">+ 追加</button>
+  </div>
+  <div class="proj-list" id="proj-list"></div>
+</div>
+
+<!-- WEEKLY REVIEW -->
+<div class="screen" id="sc-review">
+  <div class="screen-hd">
+    <div>
+      <div class="screen-title">Weekly Review</div>
+      <div class="screen-sub">日曜日の見直し</div>
+    </div>
+  </div>
+  <div class="review-wrap" id="review-wrap"></div>
+</div>
+
+<!-- NAV -->
+<nav id="bottom-nav">
+  <button class="nav-btn active" id="nav-inbox" onclick="switchScreen('inbox')"><span class="nav-icon">📥</span>Inbox</button>
+  <button class="nav-btn" id="nav-ctx" onclick="switchScreen('ctx')"><span class="nav-icon">⚡</span>今やる</button>
+  <button class="nav-btn" id="nav-proj" onclick="switchScreen('proj')"><span class="nav-icon">📋</span>プロジェクト</button>
+  <button class="nav-btn" id="nav-review" onclick="switchScreen('review')"><span class="nav-icon">🌅</span>Review</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+</div>
+
+<script>
+// ===== STORAGE =====
+const load = k => { try { return JSON.parse(localStorage.getItem('gtd_'+k)||'[]'); } catch { return []; } };
+const save = (k,v) => { try { localStorage.setItem('gtd_'+k, JSON.stringify(v)); } catch {} };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+// ===== STATE =====
+let curCtx = 'energy';
+let selCtxVal = null;
+let recognition = null;
+let isRecording = false;
+
+// ===== SCREEN =====
+function switchScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sc-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  if(name==='inbox') renderInbox();
+  if(name==='ctx') renderCtx();
+  if(name==='proj') renderProj();
+  if(name==='review') renderReview();
+}
+
+// ===== INBOX =====
+function selCtx(btn, ctx) {
+  document.querySelectorAll('.ctx-chip').forEach(b => {
+    b.className = 'ctx-chip';
+  });
+  btn.classList.add('sel-'+ctx);
+  selCtxVal = ctx;
+}
+
+function addInbox() {
+  const inp = document.getElementById('inbox-input');
+  const text = inp.value.trim();
+  if(!text) return;
+
+  if(selCtxVal && selCtxVal !== 'calendar') {
+    // コンテキスト選択済みならタスクに直接追加
+    const tasks = load('tasks');
+    tasks.push({ id: uid(), text, ctx: selCtxVal, done: false, proj: null, created: Date.now() });
+    save('tasks', tasks);
+    toast('「'+text.slice(0,20)+'...」を '+ctxLabel(selCtxVal)+' に追加しました');
+  } else if(selCtxVal === 'calendar') {
+    // カレンダー項目
+    const cal = load('calendar');
+    cal.push({ id: uid(), text, created: Date.now() });
+    save('calendar', cal);
+    toast('📅 カレンダー項目に追加しました');
+  } else {
+    // Inboxに放り込む
+    const inbox = load('inbox');
+    inbox.push({ id: uid(), text, created: Date.now() });
+    save('inbox', inbox);
+    toast('Inboxに放り込みました ✓');
+  }
+
+  inp.value = '';
+  selCtxVal = null;
+  document.querySelectorAll('.ctx-chip').forEach(b => b.className = 'ctx-chip');
+  renderInbox();
+}
+
+function renderInbox() {
+  const inbox = load('inbox');
+  const el = document.getElementById('inbox-items');
+  const count = document.getElementById('inbox-count');
+  count.textContent = inbox.length + '件';
+
+  if(!inbox.length) {
+    el.innerHTML = '<div class="inbox-empty">🎉 Inboxは空です<br><span style="font-size:12px;margin-top:6px;display:block">全部整理されています</span></div>';
+    return;
+  }
+
+  el.innerHTML = inbox.map(item => `
+    <div class="inbox-item">
+      <div class="inbox-dot"></div>
+      <div class="inbox-text">${esc(item.text)}</div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <button class="inbox-del" onclick="processInbox('${item.id}')" title="整理する">→</button>
+        <button class="inbox-del" onclick="deleteInbox('${item.id}')" title="削除">×</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function processInbox(id) {
+  const inbox = load('inbox');
+  const item = inbox.find(i => i.id === id);
+  if(!item) return;
+
+  // シンプルなコンテキスト選択ダイアログ
+  const ctx = prompt(`「${item.text.slice(0,30)}」\nどのコンテキストに整理しますか？\n\n1: 🔥 エネルギー高\n2: 📱 スキマ時間\n3: 🧠 疲れてても\n4: 🗄️ いつかやる\n5: 📅 カレンダー\n6: 🗑️ 削除\n\n番号を入力:`);
+  if(!ctx) return;
+
+  const ctxMap = {'1':'energy','2':'mobile','3':'low','4':'someday','5':'calendar'};
+  if(ctx === '6') { deleteInbox(id); return; }
+  const ctxVal = ctxMap[ctx];
+  if(!ctxVal) return;
+
+  // Inboxから削除
+  const newInbox = inbox.filter(i => i.id !== id);
+  save('inbox', newInbox);
+
+  if(ctxVal === 'calendar') {
+    const cal = load('calendar');
+    cal.push({ id: uid(), text: item.text, created: Date.now() });
+    save('calendar', cal);
+    toast('📅 カレンダー項目に移動しました');
+  } else {
+    const tasks = load('tasks');
+    tasks.push({ id: uid(), text: item.text, ctx: ctxVal, done: false, proj: null, created: Date.now() });
+    save('tasks', tasks);
+    toast(ctxLabel(ctxVal)+' に追加しました');
+  }
+  renderInbox();
+}
+
+function deleteInbox(id) {
+  const inbox = load('inbox').filter(i => i.id !== id);
+  save('inbox', inbox);
+  renderInbox();
+}
+
+// ===== CONTEXT =====
+function switchCtx(ctx, btn) {
+  curCtx = ctx;
+  document.querySelectorAll('.ctx-tab').forEach(b => {
+    b.className = 'ctx-tab';
+  });
+  btn.classList.add('active-'+ctx);
+  renderCtx();
+}
+
+function renderCtx() {
+  const tasks = load('tasks').filter(t => t.ctx === curCtx);
+  const el = document.getElementById('task-list');
+
+  if(!tasks.length) {
+    const msgs = {
+      energy: '🔥 エネルギー高のタスクはありません\nInboxから整理して追加しましょう',
+      mobile: '📱 スキマ時間のタスクはありません',
+      low: '🧠 今日はゆっくり休んでください',
+      someday: '🗄️ いつかやるリストは空です'
+    };
+    el.innerHTML = `<div class="task-empty"><div class="task-empty-icon">${msgs[curCtx]?.split('\n')[0].slice(0,2)||'✨'}</div><div class="task-empty-msg">${msgs[curCtx]||'タスクはありません'}</div></div>`;
+    return;
+  }
+
+  el.innerHTML = tasks.map(t => `
+    <div class="task-item" id="task-${t.id}">
+      <div class="task-check ${t.done?'done':''}" onclick="toggleTask('${t.id}')">
+        ${t.done?'<span style="color:#fff;font-size:14px">✓</span>':''}
+      </div>
+      <div class="task-body">
+        <div class="task-text ${t.done?'done':''}">${esc(t.text)}</div>
+        ${t.proj?`<div class="task-proj">📋 ${esc(t.proj)}</div>`:''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleTask(id) {
+  const tasks = load('tasks');
+  const t = tasks.find(t => t.id === id);
+  if(!t) return;
+  t.done = !t.done;
+  if(t.done) t.completed = Date.now();
+  save('tasks', tasks);
+  renderCtx();
+  if(t.done) toast('完了 ✓ お疲れさまです');
+}
+
+// ===== PROJECTS =====
+function renderProj() {
+  const projects = load('projects');
+  const tasks = load('tasks');
+  const el = document.getElementById('proj-list');
+
+  if(!projects.length) {
+    el.innerHTML = '<div class="task-empty"><div class="task-empty-icon">📋</div><div class="task-empty-msg">プロジェクトはまだありません<br>複数ステップが必要なものを登録しましょう</div></div>';
+    return;
+  }
+
+  el.innerHTML = projects.map(p => {
+    const nextTask = tasks.find(t => t.proj === p.id && !t.done);
+    return `
+    <div class="proj-card">
+      <div class="proj-name">${esc(p.name)}</div>
+      ${nextTask ? `
+        <div class="proj-next">
+          <span class="proj-ctx ${nextTask.ctx}">${ctxEmoji(nextTask.ctx)}</span>
+          <span>${esc(nextTask.text)}</span>
+        </div>
+      ` : '<div class="proj-next" style="color:var(--low)">✓ 次の行動なし — Inboxを確認</div>'}
+      <div class="proj-status">
+        <span class="status-pill">${p.status==='active'?'進行中':p.status==='waiting'?'待ち':'いつかやる'}</span>
+      </div>
+    </div>
+  `}).join('');
+}
+
+function showAddProj() {
+  const name = prompt('プロジェクト名を入力:');
+  if(!name?.trim()) return;
+  const projects = load('projects');
+  projects.push({ id: uid(), name: name.trim(), status: 'active', created: Date.now() });
+  save('projects', projects);
+  renderProj();
+  toast('プロジェクトを追加しました');
+}
+
+// ===== WEEKLY REVIEW =====
+function renderReview() {
+  const wrap = document.getElementById('review-wrap');
+  const today = new Date();
+  const isSunday = today.getDay() === 0;
+  const dateStr = today.toLocaleDateString('ja-JP', {year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  const inbox = load('inbox');
+  const tasks = load('tasks');
+  const done = tasks.filter(t => t.done && t.completed > Date.now() - 7*24*60*60*1000).length;
+
+  if(!isSunday) {
+    wrap.innerHTML = `
+      <div class="review-not-sunday">
+        <div style="font-size:36px;margin-bottom:12px">🌅</div>
+        <div style="font-weight:700;color:var(--text);margin-bottom:8px">Weekly Reviewは日曜日に</div>
+        <div>今日は${['日','月','火','水','木','金','土'][today.getDay()]}曜日です。<br>日曜日にここを開くと自動で始まります。</div>
+        <div style="margin-top:16px;padding:12px;background:var(--surface2);border-radius:10px;font-size:13px">
+          📥 未整理Inbox：${inbox.length}件<br>
+          ✅ 今週の完了：${done}件
+        </div>
+      </div>`;
+    return;
+  }
+
+  wrap.innerHTML = `
+    <div class="review-hero">
+      <div class="review-icon">🌅</div>
+      <div class="review-title">Weekly Review</div>
+      <div class="review-date">${dateStr}</div>
+    </div>
+
+    <div class="review-step">
+      <div class="review-step-hd">
+        <div class="review-step-n">1</div>
+        <div class="review-step-title">Inboxを空にする</div>
+      </div>
+      <div class="review-step-body">
+        現在 <strong style="color:var(--accent)">${inbox.length}件</strong> が未整理です。<br>
+        Inboxタブに移動して、全件を整理してください。
+      </div>
+    </div>
+
+    <div class="review-step">
+      <div class="review-step-hd">
+        <div class="review-step-n">2</div>
+        <div class="review-step-title">今週の振り返り</div>
+      </div>
+      <div class="review-step-body">今週完了したこと：<strong style="color:var(--low)">${done}件</strong></div>
+      <textarea class="review-textarea" placeholder="今週よかったこと・気づいたことを書く..."></textarea>
+    </div>
+
+    <div class="review-step">
+      <div class="review-step-hd">
+        <div class="review-step-n">3</div>
+        <div class="review-step-title">プロジェクトを見直す</div>
+      </div>
+      <div class="review-step-body">各プロジェクトに「次の行動」があるか確認する。なければ追加する。</div>
+    </div>
+
+    <div class="review-step">
+      <div class="review-step-hd">
+        <div class="review-step-n">4</div>
+        <div class="review-step-title">来週の準備</div>
+      </div>
+      <textarea class="review-textarea" placeholder="来週必ずやること・気になることを書く..."></textarea>
+    </div>
+
+    <button class="review-complete" onclick="completeReview()">✓ Weekly Review 完了</button>
+  `;
+}
+
+function completeReview() {
+  const reviews = load('reviews');
+  reviews.push({ date: new Date().toISOString(), completed: Date.now() });
+  save('reviews', reviews);
+  toast('🌅 Weekly Review 完了！お疲れさまでした');
+}
+
+// ===== VOICE =====
+function toggleVoice() {
+  if(!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    toast('音声入力はこのブラウザでは非対応です');
+    return;
+  }
+  if(isRecording) {
+    recognition?.stop();
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'ja-JP';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.onstart = () => {
+    isRecording = true;
+    document.getElementById('voice-btn').classList.add('recording');
+    document.getElementById('voice-btn').textContent = '⏹';
+  };
+  recognition.onresult = e => {
+    const text = e.results[0][0].transcript;
+    document.getElementById('inbox-input').value += (document.getElementById('inbox-input').value?'\n':'')+text;
+  };
+  recognition.onend = () => {
+    isRecording = false;
+    document.getElementById('voice-btn').classList.remove('recording');
+    document.getElementById('voice-btn').textContent = '🎤';
+  };
+  recognition.start();
+}
+
+// ===== UTILS =====
+function ctxLabel(ctx) {
+  return {energy:'🔥 エネルギー高',mobile:'📱 スキマ時間',low:'🧠 疲れてても',someday:'🗄️ いつかやる'}[ctx]||ctx;
+}
+function ctxEmoji(ctx) {
+  return {energy:'🔥',mobile:'📱',low:'🧠',someday:'🗄️'}[ctx]||'';
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ===== BOOT =====
+(function() {
+  renderInbox();
+
+  // 初期タスクを投入（初回のみ）
+  if(!localStorage.getItem('gtd_initialized')) {
+    const tasks = [
+      {id:uid(),text:'Claude GTD PWA Inbox画面を実装する',ctx:'energy',done:false,proj:null,created:Date.now()},
+      {id:uid(),text:'Note記事「GTD挫折の記録」第1回を書く',ctx:'energy',done:false,proj:null,created:Date.now()},
+      {id:uid(),text:'MarketChameleon Watchlists サブ記事を書く',ctx:'energy',done:false,proj:null,created:Date.now()},
+      {id:uid(),text:'Kindle eBook カバー最終化・販売ページ公開',ctx:'energy',done:false,proj:null,created:Date.now()},
+      {id:uid(),text:'SeekingAlpha 再申請メールを送る',ctx:'mobile',done:false,proj:null,created:Date.now()},
+      {id:uid(),text:'ミニDVテープ デジタル化業者を1社調べる',ctx:'mobile',done:false,proj:null,created:Date.now()},
+      {id:uid(),text:'Xファクターレポート Vol.5 を読む',ctx:'mobile',done:false,proj:null,created:Date.now()},
+      {id:uid(),text:'S&P500オプション投資メールを読む（守屋さん）',ctx:'low',done:false,proj:null,created:Date.now()},
+      {id:uid(),text:'カロリー記録を毎日続ける',ctx:'low',done:false,proj:null,created:Date.now()},
+      {id:uid(),text:'mk-career-planning.com Yoast改善',ctx:'someday',done:false,proj:null,created:Date.now()},
+      {id:uid(),text:'ChatGPTデータのObsidian取り込み',ctx:'someday',done:false,proj:null,created:Date.now()},
+      {id:uid(),text:'C:\\agents\\ をGitHubにpush',ctx:'someday',done:false,proj:null,created:Date.now()},
+    ];
+    save('tasks', tasks);
+
+    const projects = [
+      {id:'p1',name:'Claude GTD PWA',status:'active',created:Date.now()},
+      {id:'p2',name:'カロリー記録 Note連載',status:'active',created:Date.now()},
+      {id:'p3',name:'MarketChameleon monetization',status:'active',created:Date.now()},
+      {id:'p4',name:'Kindle eBook',status:'active',created:Date.now()},
+    ];
+    save('projects', projects);
+    localStorage.setItem('gtd_initialized','1');
+  }
+})();
+</script>
+</body>
+</html>

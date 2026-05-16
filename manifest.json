@@ -1,0 +1,20 @@
+{
+  "name": "Claude GTD",
+  "short_name": "GTD",
+  "start_url": "/claude-gtd/",
+  "display": "standalone",
+  "background_color": "#0F0F0F",
+  "theme_color": "#F5A623",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
