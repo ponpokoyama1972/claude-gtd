@@ -1063,65 +1063,109 @@ function resumeCtx() {
   return ctx;
 }
 
-// パチスロ：リール停止音（カチッ＋短い下降音）
+// パチスロ：リール停止音（重みのある金属クリック＋確定トーン）
 function playReel() {
   const ctx = resumeCtx(); if(!ctx) return;
   const t = ctx.currentTime;
-  // クリック音
-  const buf = ctx.createBuffer(1, ctx.sampleRate * 0.01, ctx.sampleRate);
+
+  // 重いクリック（ノイズバースト＋低周波）
+  const bufLen = ctx.sampleRate * 0.06;
+  const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
   const data = buf.getChannelData(0);
-  for(let i = 0; i < data.length; i++) data[i] = (Math.random()*2-1) * (1 - i/data.length);
+  for(let i = 0; i < bufLen; i++) {
+    const decay = Math.exp(-i / (bufLen * 0.3));
+    data[i] = (Math.random()*2-1) * decay;
+  }
   const src = ctx.createBufferSource();
   src.buffer = buf;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 180;
+  filter.Q.value = 0.8;
   const g = ctx.createGain();
-  g.gain.setValueAtTime(0.4, t);
-  g.gain.exponentialRampToValueAtTime(0.001, t+0.04);
-  src.connect(g); g.connect(ctx.destination); src.start(t);
+  g.gain.setValueAtTime(0.7, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t+0.06);
+  src.connect(filter); filter.connect(g); g.connect(ctx.destination);
+  src.start(t);
 
-  // 確定音（短い下降トーン）
-  [880, 660, 440].forEach((freq, i) => {
+  // 確定音（サイン波でクリーンな2音）
+  [[440, 0.08], [660, 0.16]].forEach(([freq, delay]) => {
     const o = ctx.createOscillator();
     const g2 = ctx.createGain();
-    o.type = 'square';
-    o.frequency.setValueAtTime(freq, t + i*0.04);
-    g2.gain.setValueAtTime(0.12, t + i*0.04);
-    g2.gain.exponentialRampToValueAtTime(0.001, t + i*0.04 + 0.05);
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq, t + delay);
+    o.frequency.exponentialRampToValueAtTime(freq * 0.92, t + delay + 0.18);
+    g2.gain.setValueAtTime(0.22, t + delay);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.22);
     o.connect(g2); g2.connect(ctx.destination);
-    o.start(t + i*0.04); o.stop(t + i*0.04 + 0.06);
+    o.start(t + delay); o.stop(t + delay + 0.25);
   });
 }
 
-// コイン落下音（チャリン）
+// コイン落下音（金属的なチャリン）
 function playCoin() {
   const ctx = resumeCtx(); if(!ctx) return;
   const t = ctx.currentTime;
-  [1800, 2200, 1600, 2600].forEach((freq, i) => {
+
+  // 金属打撃感（高周波ノイズ＋減衰）
+  const bufLen = ctx.sampleRate * 0.08;
+  const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i = 0; i < bufLen; i++) {
+    d[i] = (Math.random()*2-1) * Math.exp(-i / (bufLen * 0.15));
+  }
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const hpf = ctx.createBiquadFilter();
+  hpf.type = 'highpass';
+  hpf.frequency.value = 2000;
+  const g0 = ctx.createGain();
+  g0.gain.setValueAtTime(0.35, t);
+  src.connect(hpf); hpf.connect(g0); g0.connect(ctx.destination);
+  src.start(t);
+
+  // リンリン感（高い正弦波2本）
+  [[3200, 0], [2400, 0.04], [3800, 0.09]].forEach(([freq, delay]) => {
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.type = 'sine';
-    o.frequency.setValueAtTime(freq, t + i*0.05);
-    o.frequency.exponentialRampToValueAtTime(freq * 0.7, t + i*0.05 + 0.15);
-    g.gain.setValueAtTime(0.18, t + i*0.05);
-    g.gain.exponentialRampToValueAtTime(0.001, t + i*0.05 + 0.2);
+    o.frequency.setValueAtTime(freq, t + delay);
+    o.frequency.exponentialRampToValueAtTime(freq * 0.6, t + delay + 0.25);
+    g.gain.setValueAtTime(0.15, t + delay);
+    g.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.3);
     o.connect(g); g.connect(ctx.destination);
-    o.start(t + i*0.05); o.stop(t + i*0.05 + 0.22);
+    o.start(t + delay); o.stop(t + delay + 0.32);
   });
 }
 
-// ジャックポット（絵柄揃い）
+// ジャックポット（豪華な和音＋上昇ファンファーレ）
 function playJackpot() {
   const ctx = resumeCtx(); if(!ctx) return;
   const t = ctx.currentTime;
-  const melody = [523,659,784,1047,784,1047,1319];
-  melody.forEach((freq, i) => {
+
+  // ベース和音
+  [[130, 0], [164, 0], [196, 0], [261, 0.05]].forEach(([freq, delay]) => {
     const o = ctx.createOscillator();
     const g = ctx.createGain();
-    o.type = i < 3 ? 'square' : 'sine';
-    o.frequency.setValueAtTime(freq, t + i*0.12);
-    g.gain.setValueAtTime(0.2, t + i*0.12);
-    g.gain.exponentialRampToValueAtTime(0.001, t + i*0.12 + 0.15);
+    o.type = 'triangle';
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0.12, t+delay);
+    g.gain.exponentialRampToValueAtTime(0.001, t+delay+0.6);
     o.connect(g); g.connect(ctx.destination);
-    o.start(t + i*0.12); o.stop(t + i*0.12 + 0.18);
+    o.start(t+delay); o.stop(t+delay+0.7);
+  });
+
+  // メロディ（サイン波でクリーン）
+  const melody = [[523,0.1],[659,0.22],[784,0.34],[1047,0.46],[1319,0.58],[1047,0.7],[1319,0.82],[1568,0.94]];
+  melody.forEach(([freq, delay]) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq, t+delay);
+    g.gain.setValueAtTime(0.25, t+delay);
+    g.gain.exponentialRampToValueAtTime(0.001, t+delay+0.18);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t+delay); o.stop(t+delay+0.2);
   });
 }
 
