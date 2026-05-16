@@ -211,6 +211,8 @@ body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:var(--bg);c
 .suck-in{animation:suckIn .35s ease forwards;}
 .check-bounce{animation:checkBounce .4s ease forwards;}
 .jackpot{animation:jackpotFlash .8s ease forwards;}
+@keyframes swipeOut{0%{opacity:1;transform:translateX(0) scale(1);max-height:100px;margin-bottom:10px;}60%{opacity:.3;transform:translateX(60px) scale(.95);max-height:100px;margin-bottom:10px;}100%{opacity:0;transform:translateX(80px) scale(.9);max-height:0;margin-bottom:0;padding:0;}}
+.swipe-out{animation:swipeOut .4s cubic-bezier(.4,0,.2,1) forwards;overflow:hidden;}
 .particle{position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:999;animation:particle .6s ease forwards;}
 @keyframes slideUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
 .task-item,.inbox-item,.proj-card{animation:slideUp .2s ease both;}
@@ -465,6 +467,27 @@ body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:var(--bg);c
           <div class="settings-lbl">APIキーの取得方法</div>
           <div class="settings-sub">console.anthropic.com → API Keys</div>
         </div>
+      </div>
+    </div>
+
+    <div class="settings-sec-lbl">完了通知</div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <div style="width:100%">
+          <div class="settings-lbl">通知先メールアドレス</div>
+          <div class="settings-sub">タスク完了時に通知を送ります（自分のGmailを設定）</div>
+          <input type="email" class="api-key-inp" id="notify-email-inp" placeholder="your@gmail.com" style="margin-top:8px">
+          <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="notify-enabled" style="width:16px;height:16px;accent-color:var(--accent)">
+              <span style="color:var(--muted)">完了時に通知する</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-sub">件名フォーマット：GTD_DONE: タスク名<br>ObsidianやNotionと連携できます</div>
+        <button class="settings-action" onclick="saveNotifySettings()">保存する</button>
       </div>
     </div>
 
@@ -794,7 +817,7 @@ function switchCtx(ctx, btn) {
 }
 
 function renderCtx() {
-  const tasks = load('tasks').filter(t => t.ctx === curCtx);
+  const tasks = load('tasks').filter(t => t.ctx === curCtx && !t.done);
   const el = document.getElementById('task-list');
 
   if(!tasks.length) {
@@ -830,17 +853,23 @@ function toggleTask(id) {
   save('tasks', tasks);
 
   if(t.done) {
-    // コイン音
     playCoin();
-    // パーティクル
     const el = document.getElementById('task-'+id);
     if(el) {
       const rect = el.getBoundingClientRect();
       spawnParticles(rect.left + rect.width/2, rect.top + rect.height/2, 'var(--accent)');
+      // チェックバウンス後にシュワっと消える
+      el.querySelector('.task-check')?.classList.add('check-bounce');
+      setTimeout(() => {
+        el.classList.add('swipe-out');
+        setTimeout(() => renderCtx(), 380);
+      }, 300);
     }
     toast('✓ コンプリート！');
+    sendCompletionNotify(t.text);
+  } else {
+    renderCtx();
   }
-  renderCtx();
 }
 
 // ===== PROJECTS =====
@@ -992,6 +1021,28 @@ function toggleVoice() {
   recognition.start();
 }
 
+// ===== COMPLETION NOTIFY =====
+function sendCompletionNotify(taskText) {
+  const ns = loadNotifySettings();
+  if(!ns.enabled || !ns.email) return;
+
+  const subject = encodeURIComponent('GTD_DONE: ' + taskText);
+  const now = new Date().toLocaleString('ja-JP');
+  const body = encodeURIComponent(
+    'タスク完了通知\n\n' +
+    '完了タスク: ' + taskText + '\n' +
+    '完了日時: ' + now + '\n\n' +
+    '---\n' +
+    'Claude GTD より自動送信'
+  );
+  const mailto = `mailto:${ns.email}?subject=${subject}&body=${body}`;
+
+  // メールアプリを開く（確認なし）
+  const a = document.createElement('a');
+  a.href = mailto;
+  a.click();
+}
+
 // ===== SETTINGS =====
 function loadApiKey() { return localStorage.getItem('gtd_apikey') || ''; }
 function saveApiKey() {
@@ -1001,6 +1052,19 @@ function saveApiKey() {
   renderSettings();
   toast('APIキーを保存しました ✓');
 }
+function loadNotifySettings() {
+  return {
+    email: localStorage.getItem('gtd_notify_email') || '',
+    enabled: localStorage.getItem('gtd_notify_enabled') === 'true'
+  };
+}
+function saveNotifySettings() {
+  const email = document.getElementById('notify-email-inp').value.trim();
+  const enabled = document.getElementById('notify-enabled').checked;
+  localStorage.setItem('gtd_notify_email', email);
+  localStorage.setItem('gtd_notify_enabled', String(enabled));
+  toast('通知設定を保存しました ✓');
+}
 function renderSettings() {
   const key = loadApiKey();
   const status = document.getElementById('api-status');
@@ -1009,6 +1073,13 @@ function renderSettings() {
     ? '<span class="api-status ok">✓ 設定済み</span>'
     : '<span class="api-status ng">✗ 未設定</span>';
   if(inp && key) inp.placeholder = 'sk-ant-••••••••（設定済み）';
+
+  // 通知設定
+  const ns = loadNotifySettings();
+  const emailInp = document.getElementById('notify-email-inp');
+  const enabledChk = document.getElementById('notify-enabled');
+  if(emailInp) emailInp.value = ns.email;
+  if(enabledChk) enabledChk.checked = ns.enabled;
 }
 function exportData() {
   const data = {
