@@ -601,6 +601,9 @@ async function addInboxWithAI() {
     });
 
     const data = await res.json();
+    if(!res.ok) {
+      throw new Error('API ' + res.status + ': ' + (data.error?.message || JSON.stringify(data)));
+    }
     const raw = data.content?.[0]?.text || '';
     const json = JSON.parse(raw.replace(/```json|```/g,'').trim());
 
@@ -608,7 +611,8 @@ async function addInboxWithAI() {
     showAISuggest(text, json);
   } catch(e) {
     loading.style.display = 'none';
-    toast('AI分析をスキップしました');
+    console.error('AI error:', e);
+    toast('エラー: ' + (e.message || String(e)).slice(0, 40));
   }
 }
 
