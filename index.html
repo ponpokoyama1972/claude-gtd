@@ -203,6 +203,16 @@ body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:var(--bg);c
 
 /* === ANIMATIONS === */
 @keyframes slideUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+@keyframes suckIn{0%{opacity:1;transform:scale(1) translateX(0);}60%{opacity:.8;transform:scale(.95) translateX(4px);}100%{opacity:0;transform:scale(.7) translateX(40px);}}
+@keyframes checkBounce{0%{transform:scale(0) rotate(-10deg);}50%{transform:scale(1.3) rotate(5deg);}70%{transform:scale(.9) rotate(-3deg);}100%{transform:scale(1) rotate(0);}}
+@keyframes coinFall{0%{opacity:1;transform:translateY(0) scale(1);}100%{opacity:0;transform:translateY(40px) scale(.5);}}
+@keyframes jackpotFlash{0%,100%{background:var(--bg);}15%{background:rgba(245,166,35,.15);}30%{background:var(--bg);}45%{background:rgba(245,166,35,.1);}60%{background:var(--bg);}75%{background:rgba(245,166,35,.07);}}
+@keyframes particle{0%{opacity:1;transform:translate(0,0) scale(1);}100%{opacity:0;transform:translate(var(--tx),var(--ty)) scale(0);}}
+.suck-in{animation:suckIn .35s ease forwards;}
+.check-bounce{animation:checkBounce .4s ease forwards;}
+.jackpot{animation:jackpotFlash .8s ease forwards;}
+.particle{position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:999;animation:particle .6s ease forwards;}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
 .task-item,.inbox-item,.proj-card{animation:slideUp .2s ease both;}
 </style>
 </head>
@@ -735,21 +745,36 @@ function classifyInbox(id, ctx) {
   const item = inbox.find(i => i.id === id);
   if(!item) return;
 
-  const newInbox = inbox.filter(i => i.id !== id);
-  save('inbox', newInbox);
-
-  if(ctx === 'calendar') {
-    const cal = load('calendar');
-    cal.push({ id: uid(), text: item.text, created: Date.now() });
-    save('calendar', cal);
-    toast('📅 カレンダー項目に追加しました');
-  } else {
-    const tasks = load('tasks');
-    tasks.push({ id: uid(), text: item.text, ctx, done: false, proj: null, created: Date.now() });
-    save('tasks', tasks);
-    toast(ctxLabel(ctx)+' に追加しました ✓');
+  // アニメーション
+  const el = document.getElementById('ii-'+id);
+  if(el) {
+    el.classList.add('suck-in');
+    playReel();
+    setTimeout(() => {
+      const newInbox = load('inbox').filter(i => i.id !== id);
+      save('inbox', newInbox);
+      if(ctx === 'calendar') {
+        const cal = load('calendar');
+        cal.push({ id: uid(), text: item.text, created: Date.now() });
+        save('calendar', cal);
+        toast('📅 カレンダー項目に追加しました');
+      } else {
+        const tasks = load('tasks');
+        tasks.push({ id: uid(), text: item.text, ctx, done: false, proj: null, created: Date.now() });
+        save('tasks', tasks);
+        toast(ctxLabel(ctx)+' に追加しました ✓');
+      }
+      renderInbox();
+      // Inbox空になったらジャックポット
+      if(load('inbox').length === 0) {
+        setTimeout(() => {
+          playJackpot();
+          document.getElementById('app').classList.add('jackpot');
+          setTimeout(() => document.getElementById('app').classList.remove('jackpot'), 900);
+        }, 200);
+      }
+    }, 300);
   }
-  renderInbox();
 }
 
 function deleteInbox(id) {
@@ -803,8 +828,19 @@ function toggleTask(id) {
   t.done = !t.done;
   if(t.done) t.completed = Date.now();
   save('tasks', tasks);
+
+  if(t.done) {
+    // コイン音
+    playCoin();
+    // パーティクル
+    const el = document.getElementById('task-'+id);
+    if(el) {
+      const rect = el.getBoundingClientRect();
+      spawnParticles(rect.left + rect.width/2, rect.top + rect.height/2, 'var(--accent)');
+    }
+    toast('✓ コンプリート！');
+  }
   renderCtx();
-  if(t.done) toast('完了 ✓ お疲れさまです');
 }
 
 // ===== PROJECTS =====
@@ -1013,6 +1049,93 @@ function toast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ===== SOUND ENGINE =====
+let _actx = null;
+function getACtx() {
+  if(!_actx) try { _actx = new(window.AudioContext||window.webkitAudioContext)(); } catch{}
+  return _actx;
+}
+function resumeCtx() {
+  const ctx = getACtx();
+  if(ctx && ctx.state === 'suspended') ctx.resume();
+  return ctx;
+}
+
+// パチスロ：リール停止音（カチッ＋短い下降音）
+function playReel() {
+  const ctx = resumeCtx(); if(!ctx) return;
+  const t = ctx.currentTime;
+  // クリック音
+  const buf = ctx.createBuffer(1, ctx.sampleRate * 0.01, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i = 0; i < data.length; i++) data[i] = (Math.random()*2-1) * (1 - i/data.length);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.4, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t+0.04);
+  src.connect(g); g.connect(ctx.destination); src.start(t);
+
+  // 確定音（短い下降トーン）
+  [880, 660, 440].forEach((freq, i) => {
+    const o = ctx.createOscillator();
+    const g2 = ctx.createGain();
+    o.type = 'square';
+    o.frequency.setValueAtTime(freq, t + i*0.04);
+    g2.gain.setValueAtTime(0.12, t + i*0.04);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + i*0.04 + 0.05);
+    o.connect(g2); g2.connect(ctx.destination);
+    o.start(t + i*0.04); o.stop(t + i*0.04 + 0.06);
+  });
+}
+
+// コイン落下音（チャリン）
+function playCoin() {
+  const ctx = resumeCtx(); if(!ctx) return;
+  const t = ctx.currentTime;
+  [1800, 2200, 1600, 2600].forEach((freq, i) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq, t + i*0.05);
+    o.frequency.exponentialRampToValueAtTime(freq * 0.7, t + i*0.05 + 0.15);
+    g.gain.setValueAtTime(0.18, t + i*0.05);
+    g.gain.exponentialRampToValueAtTime(0.001, t + i*0.05 + 0.2);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t + i*0.05); o.stop(t + i*0.05 + 0.22);
+  });
+}
+
+// ジャックポット（絵柄揃い）
+function playJackpot() {
+  const ctx = resumeCtx(); if(!ctx) return;
+  const t = ctx.currentTime;
+  const melody = [523,659,784,1047,784,1047,1319];
+  melody.forEach((freq, i) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = i < 3 ? 'square' : 'sine';
+    o.frequency.setValueAtTime(freq, t + i*0.12);
+    g.gain.setValueAtTime(0.2, t + i*0.12);
+    g.gain.exponentialRampToValueAtTime(0.001, t + i*0.12 + 0.15);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t + i*0.12); o.stop(t + i*0.12 + 0.18);
+  });
+}
+
+// パーティクル爆発
+function spawnParticles(x, y, color) {
+  for(let i = 0; i < 12; i++) {
+    const el = document.createElement('div');
+    el.className = 'particle';
+    const angle = (i / 12) * Math.PI * 2;
+    const dist = 40 + Math.random() * 40;
+    el.style.cssText = `left:${x}px;top:${y}px;background:${color};--tx:${Math.cos(angle)*dist}px;--ty:${Math.sin(angle)*dist}px;`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 700);
+  }
 }
 
 // ===== BOOT =====
