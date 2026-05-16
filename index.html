@@ -129,6 +129,31 @@ body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:var(--bg);c
 .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);font-size:14px;font-weight:700;padding:10px 20px;border-radius:24px;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;}
 .toast.show{opacity:1;}
 
+/* === GUIDE === */
+.guide-wrap{padding:0 16px 24px;}
+.guide-hero{background:linear-gradient(135deg,#0a1628,#1a0a2e);border:1px solid #2a3a5e;border-radius:20px;padding:28px 24px;margin-bottom:20px;text-align:center;}
+.guide-hero-title{font-size:22px;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,var(--accent),var(--mobile));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.guide-hero-sub{font-size:13px;color:var(--muted);line-height:1.7;}
+.guide-sec{margin-bottom:24px;}
+.guide-sec-title{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;padding-left:4px;}
+.guide-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:10px;}
+.guide-card-hd{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.guide-card-icon{font-size:24px;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--surface2);flex-shrink:0;}
+.guide-card-title{font-size:16px;font-weight:700;}
+.guide-card-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.guide-card-body{font-size:13px;color:var(--muted);line-height:1.8;}
+.guide-card-body strong{color:var(--text);}
+.guide-step{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+.guide-step:last-child{border-bottom:none;padding-bottom:0;}
+.guide-step-n{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#000;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.guide-step-body{flex:1;}
+.guide-step-title{font-size:14px;font-weight:600;margin-bottom:3px;}
+.guide-step-desc{font-size:12px;color:var(--muted);line-height:1.6;}
+.guide-ctx-row{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+.guide-ctx-row:last-child{border-bottom:none;}
+.guide-ctx-badge{font-size:11px;font-weight:700;padding:4px 10px;border-radius:10px;white-space:nowrap;flex-shrink:0;}
+.guide-ctx-desc{font-size:13px;color:var(--muted);line-height:1.6;}
+
 /* === ANIMATIONS === */
 @keyframes slideUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
 .task-item,.inbox-item,.proj-card{animation:slideUp .2s ease both;}
@@ -207,12 +232,146 @@ body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:var(--bg);c
   <div class="review-wrap" id="review-wrap"></div>
 </div>
 
+<!-- GUIDE -->
+<div class="screen" id="sc-guide">
+  <div class="screen-hd">
+    <div>
+      <div class="screen-title">ガイド</div>
+      <div class="screen-sub">GTDの使い方</div>
+    </div>
+  </div>
+  <div class="guide-wrap">
+
+    <div class="guide-hero">
+      <div style="font-size:40px;margin-bottom:12px">🧠⚡</div>
+      <div class="guide-hero-title">AIと回すGTD</div>
+      <div class="guide-hero-sub">
+        期日を決めなくていい。<br>
+        「Claudeと話す」だけで、GTDが回る。<br>
+        30年挫折してきた人のための、新しい実践法。
+      </div>
+    </div>
+
+    <div class="guide-sec">
+      <div class="guide-sec-title">GTDとは</div>
+      <div class="guide-card">
+        <div class="guide-card-body">
+          GTD（Getting Things Done）はDavid Allenが提唱する<strong>ストレスフリーの仕事術</strong>です。「頭の中にあるすべての気になることを外に出し、整理し、実行する」という5つのステップで構成されます。<br><br>
+          理論は完璧ですが、<strong>多くの人が挫折</strong>します。理由は「期日を決めろ」と言うだけで、自分のリソース量の見積もり方を教えてくれないからです。
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-sec">
+      <div class="guide-sec-title">GTDの5ステップ</div>
+      <div class="guide-card">
+        <div class="guide-step">
+          <div class="guide-step-n">1</div>
+          <div class="guide-step-body">
+            <div class="guide-step-title">収集（Capture）</div>
+            <div class="guide-step-desc">気になることを全部Inboxへ。整理しなくていい。音声・テキスト・URLなど何でも放り込む。</div>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="guide-step-n">2</div>
+          <div class="guide-step-body">
+            <div class="guide-step-title">明確化（Clarify）</div>
+            <div class="guide-step-desc">「これはプロジェクト？次の行動？」をClaudeと整理する。</div>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="guide-step-n">3</div>
+          <div class="guide-step-body">
+            <div class="guide-step-title">整理（Organize）</div>
+            <div class="guide-step-desc">コンテキスト別リストに分類。他者都合の予定はGoogleカレンダーへ。</div>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="guide-step-n">4</div>
+          <div class="guide-step-body">
+            <div class="guide-step-title">見直し（Reflect）</div>
+            <div class="guide-step-desc">毎週日曜にWeekly Review。Claudeが先に声をかけるので、意識しなくていい。</div>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="guide-step-n">5</div>
+          <div class="guide-step-body">
+            <div class="guide-step-title">実行（Engage）</div>
+            <div class="guide-step-desc">今の自分の状態でコンテキストタブを選ぶ。期日ではなく「今できること」を実行。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-sec">
+      <div class="guide-sec-title">コンテキスト管理</div>
+      <div class="guide-card">
+        <div class="guide-card-body" style="margin-bottom:12px"><strong>期日を決めない</strong>のがこのアプリの特徴です。今の自分の状態でタブを選ぶだけでいい。</div>
+        <div class="guide-ctx-row">
+          <span class="guide-ctx-badge" style="background:rgba(245,166,35,.15);color:var(--energy)">🔥 エネルギー高</span>
+          <div class="guide-ctx-desc">集中できる時間がある。クリエイティブな作業・記事執筆・コード実装など。</div>
+        </div>
+        <div class="guide-ctx-row">
+          <span class="guide-ctx-badge" style="background:rgba(74,158,255,.15);color:var(--mobile)">📱 スキマ時間</span>
+          <div class="guide-ctx-desc">移動中・待ち時間。iPhone片手でできる返信・調査・申請など。</div>
+        </div>
+        <div class="guide-ctx-row">
+          <span class="guide-ctx-badge" style="background:rgba(82,183,139,.15);color:var(--low)">🧠 疲れてても</span>
+          <div class="guide-ctx-desc">夜・低エネルギー時。レポートを読む・情報収集・記録など。</div>
+        </div>
+        <div class="guide-ctx-row">
+          <span class="guide-ctx-badge" style="background:var(--surface2);color:var(--muted)">🗄️ いつかやる</span>
+          <div class="guide-ctx-desc">今じゃなくていい。忘れたくないが今すぐ着手しないもの。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-sec">
+      <div class="guide-sec-title">アプリの使い方</div>
+      <div class="guide-card">
+        <div class="guide-card-hd">
+          <div class="guide-card-icon">📥</div>
+          <div><div class="guide-card-title">Inbox</div><div class="guide-card-sub">収集</div></div>
+        </div>
+        <div class="guide-card-body">気になることを<strong>即座に放り込む</strong>。整理しなくていい。コンテキストを選んで追加すると直接リストへ。🎤ボタンで音声入力も可能。</div>
+      </div>
+      <div class="guide-card">
+        <div class="guide-card-hd">
+          <div class="guide-card-icon">⚡</div>
+          <div><div class="guide-card-title">今やる</div><div class="guide-card-sub">実行</div></div>
+        </div>
+        <div class="guide-card-body"><strong>今の状態に合ったタブ</strong>を選ぶ。タスクをタップで完了。難しいことは考えない。</div>
+      </div>
+      <div class="guide-card">
+        <div class="guide-card-hd">
+          <div class="guide-card-icon">📋</div>
+          <div><div class="guide-card-title">プロジェクト</div><div class="guide-card-sub">俯瞰</div></div>
+        </div>
+        <div class="guide-card-body">複数ステップが必要なものを登録。<strong>次の行動</strong>が常に見えるようにする。次の行動がないプロジェクトは止まっている。</div>
+      </div>
+      <div class="guide-card">
+        <div class="guide-card-hd">
+          <div class="guide-card-icon">🌅</div>
+          <div><div class="guide-card-title">Weekly Review</div><div class="guide-card-sub">日曜日</div></div>
+        </div>
+        <div class="guide-card-body"><strong>日曜日に開くと自動起動</strong>。Claudeが声をかけるので、意識しなくていい。Inboxを空にして、来週の準備をする。</div>
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">
+      Claude GTD v1.0<br>
+      「Claudeと話す」だけで、GTDが回る。
+    </div>
+  </div>
+</div>
+
 <!-- NAV -->
 <nav id="bottom-nav">
   <button class="nav-btn active" id="nav-inbox" onclick="switchScreen('inbox')"><span class="nav-icon">📥</span>Inbox</button>
   <button class="nav-btn" id="nav-ctx" onclick="switchScreen('ctx')"><span class="nav-icon">⚡</span>今やる</button>
   <button class="nav-btn" id="nav-proj" onclick="switchScreen('proj')"><span class="nav-icon">📋</span>プロジェクト</button>
   <button class="nav-btn" id="nav-review" onclick="switchScreen('review')"><span class="nav-icon">🌅</span>Review</button>
+  <button class="nav-btn" id="nav-guide" onclick="switchScreen('guide')"><span class="nav-icon">📖</span>ガイド</button>
 </nav>
 
 <div class="toast" id="toast"></div>
