@@ -185,6 +185,22 @@ body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:var(--bg);c
 .ai-loading-dot:nth-child(3){animation-delay:.4s;}
 @keyframes dotPulse{0%,80%,100%{opacity:.3;}40%{opacity:1;}}
 
+/* === SETTINGS === */
+.settings-wrap{padding:0 16px 24px;}
+.settings-sec-lbl{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;padding:20px 0 8px;}
+.settings-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:4px;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--border);}
+.settings-row:last-child{border-bottom:none;}
+.settings-lbl{font-size:15px;font-weight:500;}
+.settings-sub{font-size:12px;color:var(--muted);margin-top:3px;}
+.settings-action{font-size:13px;font-weight:700;color:var(--accent);background:rgba(245,166,35,.1);border:none;border-radius:8px;padding:7px 13px;cursor:pointer;}
+.settings-action.danger{color:var(--danger);background:rgba(255,92,92,.1);}
+.api-key-inp{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:13px;color:var(--text);font-family:monospace;outline:none;margin-top:8px;}
+.api-key-inp:focus{border-color:var(--accent);}
+.api-status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:10px;}
+.api-status.ok{background:rgba(82,183,139,.15);color:var(--low);}
+.api-status.ng{background:rgba(255,92,92,.15);color:var(--danger);}
+
 /* === ANIMATIONS === */
 @keyframes slideUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
 .task-item,.inbox-item,.proj-card{animation:slideUp .2s ease both;}
@@ -410,6 +426,62 @@ body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:var(--bg);c
   </div>
 </div>
 
+<!-- SETTINGS -->
+<div class="screen" id="sc-settings">
+  <div class="screen-hd">
+    <div>
+      <div class="screen-title">設定</div>
+      <div class="screen-sub">Claude GTD の設定</div>
+    </div>
+  </div>
+  <div class="settings-wrap">
+
+    <div class="settings-sec-lbl">Claude API</div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <div>
+          <div class="settings-lbl">APIキー</div>
+          <div class="settings-sub">Inboxの自動分類に使用します</div>
+          <div id="api-status" style="margin-top:8px"></div>
+          <input type="password" class="api-key-inp" id="api-key-inp" placeholder="sk-ant-..." autocomplete="off">
+        </div>
+      </div>
+      <div class="settings-row">
+        <div></div>
+        <button class="settings-action" onclick="saveApiKey()">保存する</button>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-lbl">APIキーの取得方法</div>
+          <div class="settings-sub">console.anthropic.com → API Keys</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-sec-lbl">データ</div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <div>
+          <div class="settings-lbl">データをエクスポート</div>
+          <div class="settings-sub">JSONファイルとして保存</div>
+        </div>
+        <button class="settings-action" onclick="exportData()">書き出す</button>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-lbl">全データを削除</div>
+          <div class="settings-sub">タスク・プロジェクト・Inboxを全消去</div>
+        </div>
+        <button class="settings-action danger" onclick="clearAllData()">削除</button>
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:24px;color:var(--muted);font-size:12px;line-height:1.8;">
+      APIキーはこのデバイスのlocalStorageにのみ保存されます。<br>外部サーバーには送信されません。
+    </div>
+  </div>
+</div>
+
 <!-- NAV -->
 <nav id="bottom-nav">
   <button class="nav-btn active" id="nav-inbox" onclick="switchScreen('inbox')"><span class="nav-icon">📥</span>Inbox</button>
@@ -417,6 +489,7 @@ body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:var(--bg);c
   <button class="nav-btn" id="nav-proj" onclick="switchScreen('proj')"><span class="nav-icon">📋</span>プロジェクト</button>
   <button class="nav-btn" id="nav-review" onclick="switchScreen('review')"><span class="nav-icon">🌅</span>Review</button>
   <button class="nav-btn" id="nav-guide" onclick="switchScreen('guide')"><span class="nav-icon">📖</span>ガイド</button>
+  <button class="nav-btn" id="nav-settings" onclick="switchScreen('settings')"><span class="nav-icon">⚙️</span>設定</button>
 </nav>
 
 <div class="toast" id="toast"></div>
@@ -444,6 +517,7 @@ function switchScreen(name) {
   if(name==='ctx') renderCtx();
   if(name==='proj') renderProj();
   if(name==='review') renderReview();
+  if(name==='settings') renderSettings();
 }
 
 // ===== INBOX =====
@@ -505,9 +579,20 @@ async function addInboxWithAI() {
 - someday: 今じゃなくていい・いつかやる
 - calendar: 他者都合・期日・約束事`;
 
+    const apiKey = loadApiKey();
+    if(!apiKey) {
+      loading.style.display = 'none';
+      toast('設定タブでAPIキーを設定してください');
+      return;
+    }
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 200,
@@ -865,6 +950,48 @@ function toggleVoice() {
     document.getElementById('voice-btn').textContent = '🎤';
   };
   recognition.start();
+}
+
+// ===== SETTINGS =====
+function loadApiKey() { return localStorage.getItem('gtd_apikey') || ''; }
+function saveApiKey() {
+  const key = document.getElementById('api-key-inp').value.trim();
+  if(!key) { toast('APIキーを入力してください'); return; }
+  localStorage.setItem('gtd_apikey', key);
+  renderSettings();
+  toast('APIキーを保存しました ✓');
+}
+function renderSettings() {
+  const key = loadApiKey();
+  const status = document.getElementById('api-status');
+  const inp = document.getElementById('api-key-inp');
+  if(status) status.innerHTML = key
+    ? '<span class="api-status ok">✓ 設定済み</span>'
+    : '<span class="api-status ng">✗ 未設定</span>';
+  if(inp && key) inp.placeholder = 'sk-ant-••••••••（設定済み）';
+}
+function exportData() {
+  const data = {
+    exported: new Date().toISOString(),
+    inbox: load('inbox'),
+    tasks: load('tasks'),
+    projects: load('projects'),
+    calendar: load('calendar'),
+    reviews: load('reviews')
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'gtd_backup_'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+  URL.revokeObjectURL(url);
+  toast('エクスポートしました ✓');
+}
+function clearAllData() {
+  if(!confirm('全データを削除しますか？この操作は取り消せません。')) return;
+  ['inbox','tasks','projects','calendar','reviews'].forEach(k => localStorage.removeItem('gtd_'+k));
+  localStorage.removeItem('gtd_initialized');
+  renderInbox(); renderCtx(); renderProj();
+  toast('全データを削除しました');
 }
 
 // ===== UTILS =====
