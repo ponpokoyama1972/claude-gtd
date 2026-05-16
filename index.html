@@ -67,7 +67,7 @@ body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:var(--bg);c
 
 .inbox-list{margin-top:24px;}
 .inbox-sec-lbl{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;padding:0 0 8px;}
-.inbox-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;transition:border-color .15s;}
+/* inbox-item moved to CLASSIFY section */
 .inbox-item:active{border-color:var(--accent);}
 .inbox-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:5px;flex-shrink:0;}
 .inbox-text{flex:1;font-size:14px;line-height:1.5;color:var(--text);}
@@ -153,6 +153,21 @@ body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:var(--bg);c
 .guide-ctx-row:last-child{border-bottom:none;}
 .guide-ctx-badge{font-size:11px;font-weight:700;padding:4px 10px;border-radius:10px;white-space:nowrap;flex-shrink:0;}
 .guide-ctx-desc{font-size:13px;color:var(--muted);line-height:1.6;}
+
+/* === INBOX CLASSIFY === */
+.inbox-item{background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px;overflow:hidden;transition:border-color .15s;}
+.inbox-item-top{padding:14px 16px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;}
+.inbox-item.open{border-color:var(--accent);}
+.inbox-classify{display:none;padding:0 12px 12px;gap:8px;flex-wrap:wrap;}
+.inbox-item.open .inbox-classify{display:flex;}
+.classify-btn{flex:1;min-width:calc(33% - 8px);padding:10px 6px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:12px;font-weight:700;color:var(--text);text-align:center;transition:all .15s;line-height:1.4;}
+.classify-btn:active{transform:scale(.95);}
+.classify-btn.energy{border-color:var(--energy);background:rgba(245,166,35,.12);color:var(--energy);}
+.classify-btn.mobile{border-color:var(--mobile);background:rgba(74,158,255,.12);color:var(--mobile);}
+.classify-btn.low{border-color:var(--low);background:rgba(82,183,139,.12);color:var(--low);}
+.classify-btn.someday{border-color:var(--muted);background:var(--surface2);color:var(--muted);}
+.classify-btn.calendar{border-color:#FF6B6B;background:rgba(255,107,107,.12);color:#FF6B6B;}
+.classify-btn.trash{border-color:var(--border);background:var(--surface2);color:var(--muted);}
 
 /* === ANIMATIONS === */
 @keyframes slideUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
@@ -453,45 +468,51 @@ function renderInbox() {
   }
 
   el.innerHTML = inbox.map(item => `
-    <div class="inbox-item">
-      <div class="inbox-dot"></div>
-      <div class="inbox-text">${esc(item.text)}</div>
-      <div style="display:flex;flex-direction:column;gap:4px">
-        <button class="inbox-del" onclick="processInbox('${item.id}')" title="整理する">→</button>
-        <button class="inbox-del" onclick="deleteInbox('${item.id}')" title="削除">×</button>
+    <div class="inbox-item" id="ii-${item.id}">
+      <div class="inbox-item-top" onclick="toggleClassify('${item.id}')">
+        <div class="inbox-dot" style="margin-top:5px;flex-shrink:0"></div>
+        <div class="inbox-text" style="flex:1">${esc(item.text)}</div>
+        <span style="color:var(--muted);font-size:18px;flex-shrink:0">›</span>
+      </div>
+      <div class="inbox-classify">
+        <button class="classify-btn energy" onclick="classifyInbox('${item.id}','energy')">🔥<br>エネルギー高</button>
+        <button class="classify-btn mobile" onclick="classifyInbox('${item.id}','mobile')">📱<br>スキマ時間</button>
+        <button class="classify-btn low" onclick="classifyInbox('${item.id}','low')">🧠<br>疲れてても</button>
+        <button class="classify-btn someday" onclick="classifyInbox('${item.id}','someday')">🗄️<br>いつかやる</button>
+        <button class="classify-btn calendar" onclick="classifyInbox('${item.id}','calendar')">📅<br>カレンダー</button>
+        <button class="classify-btn trash" onclick="deleteInbox('${item.id}')">🗑️<br>削除</button>
       </div>
     </div>
   `).join('');
 }
 
-function processInbox(id) {
+function toggleClassify(id) {
+  const el = document.getElementById('ii-'+id);
+  if(!el) return;
+  const isOpen = el.classList.contains('open');
+  // 全部閉じる
+  document.querySelectorAll('.inbox-item.open').forEach(e => e.classList.remove('open'));
+  if(!isOpen) el.classList.add('open');
+}
+
+function classifyInbox(id, ctx) {
   const inbox = load('inbox');
   const item = inbox.find(i => i.id === id);
   if(!item) return;
 
-  // シンプルなコンテキスト選択ダイアログ
-  const ctx = prompt(`「${item.text.slice(0,30)}」\nどのコンテキストに整理しますか？\n\n1: 🔥 エネルギー高\n2: 📱 スキマ時間\n3: 🧠 疲れてても\n4: 🗄️ いつかやる\n5: 📅 カレンダー\n6: 🗑️ 削除\n\n番号を入力:`);
-  if(!ctx) return;
-
-  const ctxMap = {'1':'energy','2':'mobile','3':'low','4':'someday','5':'calendar'};
-  if(ctx === '6') { deleteInbox(id); return; }
-  const ctxVal = ctxMap[ctx];
-  if(!ctxVal) return;
-
-  // Inboxから削除
   const newInbox = inbox.filter(i => i.id !== id);
   save('inbox', newInbox);
 
-  if(ctxVal === 'calendar') {
+  if(ctx === 'calendar') {
     const cal = load('calendar');
     cal.push({ id: uid(), text: item.text, created: Date.now() });
     save('calendar', cal);
-    toast('📅 カレンダー項目に移動しました');
+    toast('📅 カレンダー項目に追加しました');
   } else {
     const tasks = load('tasks');
-    tasks.push({ id: uid(), text: item.text, ctx: ctxVal, done: false, proj: null, created: Date.now() });
+    tasks.push({ id: uid(), text: item.text, ctx, done: false, proj: null, created: Date.now() });
     save('tasks', tasks);
-    toast(ctxLabel(ctxVal)+' に追加しました');
+    toast(ctxLabel(ctx)+' に追加しました ✓');
   }
   renderInbox();
 }
