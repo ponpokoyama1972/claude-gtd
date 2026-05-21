@@ -1253,6 +1253,33 @@ function spawnParticles(x, y, color) {
   }
 }
 
+// ===== GITHUB INBOX SYNC =====
+async function fetchGithubInbox() {
+  const url = 'https://raw.githubusercontent.com/ponpokoyama1972/claude-gtd/main/inbox.json';
+  const importedKey = 'gtd_imported_ids';
+  try {
+    const res = await fetch(url + '?t=' + Date.now());
+    if (!res.ok) return;
+    const tasks = await res.json();
+    if (!Array.isArray(tasks) || tasks.length === 0) return;
+    const importedIds = JSON.parse(localStorage.getItem(importedKey) || '[]');
+    const importedSet = new Set(importedIds);
+    const newTasks = tasks.filter(t => t.id && !importedSet.has(t.id));
+    if (newTasks.length === 0) return;
+    const inbox = load('inbox');
+    newTasks.forEach(t => {
+      inbox.push({ id: t.id, text: t.text, created: t.created || Date.now() });
+      importedSet.add(t.id);
+    });
+    save('inbox', inbox);
+    localStorage.setItem(importedKey, JSON.stringify([...importedSet]));
+    renderInbox();
+    toast(`📬 ${newTasks.length}件のタスクを取り込みました`);
+  } catch(e) {
+    console.warn('GitHub inbox fetch failed:', e);
+  }
+}
+
 // ===== BOOT =====
 (function() {
   renderInbox();
@@ -1284,6 +1311,7 @@ function spawnParticles(x, y, color) {
     save('projects', projects);
     localStorage.setItem('gtd_initialized','1');
   }
+  fetchGithubInbox();
 })();
 </script>
 </body>
